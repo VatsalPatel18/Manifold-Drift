@@ -36,22 +36,24 @@ function AxisArrows({ length = 1, origin = [0, 0, 0] }) {
   return (
     <group position={origin}>
       {/* X axis (red) */}
-      <mesh>
+      <mesh rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.02, 0.02, length, 16]} />
         <meshStandardMaterial color={'#ef4444'} />
       </mesh>
-      <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+      {/* Y axis (green) */}
+      <mesh>
         <cylinderGeometry args={[0.02, 0.02, length, 16]} />
         <meshStandardMaterial color={'#10b981'} />
       </mesh>
       {/* Z axis (blue) */}
-      <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.02, 0.02, length, 16]} />
         <meshStandardMaterial color={'#3b82f6'} />
       </mesh>
     </group>
   )
 }
+
 
 // --- Portal transition FX (expanding torus that fades out) ---
 function PortalFX({ enabled, ts, position = [0,0,0] }) {
@@ -222,41 +224,42 @@ function Player({ mode, manifold, setHud, onPose }) {
       const strafe = (keys.current['KeyD'] ? 1 : 0) - (keys.current['KeyA'] ? 1 : 0)
       const want = new THREE.Vector2(strafe, forward)
 
-      // Determine lambda (metric scale) and map to physical step
-      let lam = 1
-      if (manifold === 'sphere') lam = sphereLambda(chart.current)
-      if (manifold === 'saddle') lam = saddleLambda(chart.current)
+        // Determine lambda (metric scale) and map to physical step
+        let lam = 1
+        if (manifold === 'sphere') lam = sphereLambda(chart.current)
+        if (manifold === 'saddle') lam = saddleLambda(chart.current)
 
-      let du = new THREE.Vector2(0, 0)
-      if (want.lengthSq() > 0) {
-        want.normalize()
-        // Map local camera yaw to chart axes
         const dir3 = new THREE.Vector3()
         camera.getWorldDirection(dir3)
         const yaw = Math.atan2(dir3.x, dir3.z)
-        const localToWorld = new THREE.Matrix3().set(
-          Math.cos(yaw), -Math.sin(yaw), 0,
-          Math.sin(yaw),  Math.cos(yaw), 0,
-          0,              0,             1
-        )
-        const v = new THREE.Vector3(want.x, want.y, 1).applyMatrix3(localToWorld)
-        du = new THREE.Vector2(v.x, v.y)
-        du.normalize().multiplyScalar((speed / Math.max(lam, 1e-4)) * dt)
-      }
 
-      // Integrate chart coords
-      chart.current[0] += du.x
-      chart.current[1] += du.y
+        let du = new THREE.Vector2(0, 0)
+        if (want.lengthSq() > 0) {
+          want.normalize()
+          // Map local camera yaw to chart axes
+          const localToWorld = new THREE.Matrix3().set(
+            Math.cos(yaw), -Math.sin(yaw), 0,
+            Math.sin(yaw),  Math.cos(yaw), 0,
+            0,              0,             1
+          )
+          const v = new THREE.Vector3(want.x, want.y, 1).applyMatrix3(localToWorld)
+          du = new THREE.Vector2(v.x, v.y)
+          du.normalize().multiplyScalar((speed / Math.max(lam, 1e-4)) * dt)
+        }
 
-      // Render position according to manifold embedding
-      let p = [0, 0, 0]
-      if (manifold === 'sphere') p = stereoToSphere(chart.current)
-      if (manifold === 'saddle') p = saddleEmbed(chart.current)
+        // Integrate chart coords
+        chart.current[0] += du.x
+        chart.current[1] += du.y
 
-      obj.position.set(p[0], p[1], p[2])
+        // Render position according to manifold embedding
+        let p = [0, 0, 0]
+        if (manifold === 'sphere') p = stereoToSphere(chart.current)
+        if (manifold === 'saddle') p = saddleEmbed(chart.current)
 
-      // Pose callback
-      if (onPose) onPose({ pos: [p[0], p[1], p[2]], yaw })
+        obj.position.set(p[0], p[1], p[2])
+
+        // Pose callback
+        if (onPose) onPose({ pos: [p[0], p[1], p[2]], yaw })
 
       setHud({
         mode: manifold === 'sphere' ? 'Riemann world: Sphere via stereographic chart' : 'Riemann world: Saddle surface (demo)',
@@ -310,7 +313,7 @@ function World({ mode, manifold, heatmap }) {
       {mode !== 'euclid' && (
         <group>
           {/* Draw the manifold surface for context */}
-          {manifold === 'sphere' ? <SphereSurface heatmap={heatmap} /> : <SaddleSurface heatmap={heatmap} />
+            {manifold === 'sphere' ? <SphereSurface heatmap={heatmap} /> : <SaddleSurface heatmap={heatmap} />}
           <AxisArrows length={1.0} origin={[0, 0, 0]} />
         </group>
       )}
@@ -328,10 +331,6 @@ function SphereSurface({ heatmap = false }) {
       ) : (
         <meshStandardMaterial wireframe transparent opacity={0.4} />
       )}
-    </mesh>
-  )
-} />
-      <meshStandardMaterial wireframe transparent opacity={0.4} />
     </mesh>
   )
 }
@@ -390,30 +389,6 @@ function SaddleSurface({ heatmap = false }) {
       ) : (
         <meshStandardMaterial wireframe transparent opacity={0.45} />
       )}
-    </mesh>
-  )
-}
-  }
-  for (let i = 0; i < seg; i++) {
-    for (let j = 0; j < seg; j++) {
-      const a = i * (seg + 1) + j
-      const b = a + 1
-      const c = a + (seg + 1)
-      const d = c + 1
-      indices.push(a, b, d, a, d, c)
-    }
-  }
-  const geomRef = useRef()
-  useEffect(() => {
-    geomRef.current.computeVertexNormals()
-  }, [])
-  return (
-    <mesh>
-      <bufferGeometry ref={geomRef}>
-        <bufferAttribute attach="attributes-position" array={new Float32Array(positions)} count={positions.length / 3} itemSize={3} />
-        <bufferAttribute attach="index" array={new Uint32Array(indices)} count={indices.length} itemSize={1} />
-      </bufferGeometry>
-      <meshStandardMaterial wireframe transparent opacity={0.45} />
     </mesh>
   )
 }
@@ -482,373 +457,6 @@ export default function App() {
     </div>
   )
 }
-
 // NOTE: This is an educational visualization. In the Riemann world, movement uses a chart-based metric scaling to preserve physical speed.
 // For the sphere we use stereographic coordinates (conformal). For the saddle we embed a hyperbolic-paraboloid as a demo of negative curvature.
-// Feel free to tweak speed, surfaces, and add geodesic tracers or curvature heatmaps for extra flair. 
-
-function Player({ mode, manifold, setHud, onPose }) {
-  const { camera } = useThree()
-  const ref = useRef()
-  const vel = useRef([0, 0, 0]) // velocity in world/chart coords depending on mode
-  const chart = useRef([0, 0]) // 2D chart coords for manifold modes
-  const speed = 2.8 // meters/s (target physical speed)
-  const jumpSpeed = 4
-  const gravity = -9.8
-  const onGround = useRef(true)
-
-  const keys = useRef({})
-  useEffect(() => {
-    const down = e => (keys.current[e.code] = true)
-    const up = e => (keys.current[e.code] = false)
-    window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    return () => {
-      window.removeEventListener('keydown', down)
-      window.removeEventListener('keyup', up)
-    }
-  }, [])
-
-  // Initialize
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.position.set(0, 1.2, 4)
-    }
-    vel.current = [0, 0, 0]
-    chart.current = [0, 0]
-  }, [])
-
-  useFrame((_, dt) => {
-    dt = Math.min(dt, 1 / 30)
-
-    if (mode === 'euclid') {
-      // Basic FPS-like movement on a plane with gravity
-      const forward = (keys.current['KeyW'] ? 1 : 0) - (keys.current['KeyS'] ? 1 : 0)
-      const strafe = (keys.current['KeyD'] ? 1 : 0) - (keys.current['KeyA'] ? 1 : 0)
-      const jump = keys.current['Space']
-
-      // Camera-forward movement (ignore vertical)
-      const obj = ref.current
-      if (!obj) return
-
-      const dir = new THREE.Vector3()
-      camera.getWorldDirection(dir)
-      dir.y = 0
-      dir.normalize()
-      const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).negate()
-
-      const move = new THREE.Vector3()
-      move.addScaledVector(dir, forward)
-      move.addScaledVector(right, strafe)
-      if (move.lengthSq() > 0) move.normalize().multiplyScalar(speed)
-
-      // Apply movement to velocity (no friction for simplicity)
-      vel.current[0] = move.x
-      vel.current[2] = move.z
-
-      // Gravity
-      vel.current[1] += gravity * dt
-
-      // Jump if on ground
-      if (jump && onGround.current) {
-        vel.current[1] = jumpSpeed
-        onGround.current = false
-      }
-
-      // Integrate
-      obj.position.x += vel.current[0] * dt
-      obj.position.y += vel.current[1] * dt
-      obj.position.z += vel.current[2] * dt
-
-      // Collide with ground y=0
-      if (obj.position.y < 1) {
-        obj.position.y = 1
-        vel.current[1] = 0
-        onGround.current = true
-      }
-
-      // Report pose for helpers (portal/geodesics)
-      const yaw = Math.atan2(dir.x, dir.z)
-      if (onPose) onPose({ pos: obj.position.toArray(), yaw })
-
-      // Update HUD
-      setHud({
-        mode: 'Euclidean (flat space)',
-        pos: obj.position.toArray().map(n => n.toFixed(2)).join(', '),
-        help: 'W/A/S/D move, Space jump, Hold + drag to look. Click toggle to switch worlds.'
-      })
-    } else {
-      // Manifold navigation in 2D chart with constant physical speed
-      // Interpret camera yaw to rotate local direction
-      const obj = ref.current
-      if (!obj) return
-
-      // Compute desired direction from keys in local camera space
-      const forward = (keys.current['KeyW'] ? 1 : 0) - (keys.current['KeyS'] ? 1 : 0)
-      const strafe = (keys.current['KeyD'] ? 1 : 0) - (keys.current['KeyA'] ? 1 : 0)
-      const want = new THREE.Vector2(strafe, forward)
-
-      // Determine lambda (metric scale) and map to physical step
-      let lam = 1
-      if (manifold === 'sphere') lam = sphereLambda(chart.current)
-      if (manifold === 'saddle') lam = saddleLambda(chart.current)
-
-      let du = new THREE.Vector2(0, 0)
-      if (want.lengthSq() > 0) {
-        want.normalize()
-        // Map local camera yaw to chart axes
-        const dir3 = new THREE.Vector3()
-        camera.getWorldDirection(dir3)
-        const yaw = Math.atan2(dir3.x, dir3.z)
-        const localToWorld = new THREE.Matrix3().set(
-          Math.cos(yaw), -Math.sin(yaw), 0,
-          Math.sin(yaw),  Math.cos(yaw), 0,
-          0,              0,             1
-        )
-        const v = new THREE.Vector3(want.x, want.y, 1).applyMatrix3(localToWorld)
-        du = new THREE.Vector2(v.x, v.y)
-        du.normalize().multiplyScalar((speed / Math.max(lam, 1e-4)) * dt)
-      }
-
-      // Integrate chart coords
-      chart.current[0] += du.x
-      chart.current[1] += du.y
-
-      // Render position according to manifold embedding
-      let p = [0, 0, 0]
-      if (manifold === 'sphere') p = stereoToSphere(chart.current)
-      if (manifold === 'saddle') p = saddleEmbed(chart.current)
-
-      obj.position.set(p[0], p[1], p[2])
-
-      // Pose callback
-      if (onPose) onPose({ pos: [p[0], p[1], p[2]], yaw })
-
-      setHud({
-        mode: manifold === 'sphere' ? 'Riemann world: Sphere via stereographic chart' : 'Riemann world: Saddle surface (demo)',
-        pos: `${p.map(n => n.toFixed(2)).join(', ')} | chart: ${chart.current.map(n => n.toFixed(2)).join(', ')}`,
-        help: 'W/A/S/D move tangentially; camera drag to change heading. Speed is constant in the manifold metric.'
-      })
-    }
-  })
-
-  return (
-    <group ref={ref}>
-      {/* A tiny avatar */}
-      <mesh>
-        <sphereGeometry args={[0.1, 16, 16]} />
-        <meshStandardMaterial emissive={'#eab308'} emissiveIntensity={1} />
-      </mesh>
-      {/* A head-up label */}
-      <Html position={[0, 0.4, 0]} center>
-        <div className="px-2 py-0.5 text-xs rounded-full bg-black/60 text-white">you</div>
-      </Html>
-    </group>
-  )
-}
-
-function World({ mode, manifold, heatmap }) {
-  // Decorative objects in flat space
-  const boxes = useMemo(() => new Array(20).fill(0).map((_, i) => ({
-    position: [Math.random() * 16 - 8, 0.5, Math.random() * -16],
-    scale: 0.5 + Math.random()
-  })), [])
-
-  return (
-    <>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[3, 6, 2]} intensity={1} castShadow />
-      <Stars radius={50} depth={30} count={1000} factor={2} fade />
-
-      {mode === 'euclid' && (
-        <group>
-          <Grid args={[40, 40]} cellSize={1} cellThickness={0.6} infiniteGrid position={[0, -0.01, 0]} />
-          {boxes.map((b, i) => (
-            <mesh key={i} position={b.position} castShadow>
-              <boxGeometry args={[b.scale, b.scale, b.scale]} />
-              <meshStandardMaterial metalness={0.1} roughness={0.7} />
-            </mesh>
-          ))}
-          <AxisArrows length={1.2} origin={[0, 0.01, 0]} />
-        </group>
-      )}
-
-      {mode !== 'euclid' && (
-        <group>
-          {/* Draw the manifold surface for context */}
-          {manifold === 'sphere' ? <SphereSurface heatmap={heatmap} /> : <SaddleSurface heatmap={heatmap} />
-          <AxisArrows length={1.0} origin={[0, 0, 0]} />
-        </group>
-      )}
-    </>
-  )
-}
-
-function SphereSurface({ heatmap = false }) {
-  // Unit sphere: Gaussian curvature K = +1 (radius=1). Heatmap will be uniform.
-  return (
-    <mesh>
-      <sphereGeometry args={[1, 48, 48]} />
-      {heatmap ? (
-        <meshStandardMaterial color={'#ef4444'} transparent opacity={0.85} />
-      ) : (
-        <meshStandardMaterial wireframe transparent opacity={0.4} />
-      )}
-    </mesh>
-  )
-} />
-      <meshStandardMaterial wireframe transparent opacity={0.4} />
-    </mesh>
-  )
-}
-
-function SaddleSurface({ heatmap = false }) {
-  // Make a parametric saddle mesh with optional curvature heatmap
-  const seg = 80
-  const size = 3
-  const k = 0.15
-  const positions = []
-  const indices = []
-  const colors = []
-  const Kmax = 4 * k * k // |K(0)| = 4k^2 for z = k(x^2 - y^2)
-
-  for (let i = 0; i <= seg; i++) {
-    for (let j = 0; j <= seg; j++) {
-      const u = (i / seg - 0.5) * size * 2
-      const v = (j / seg - 0.5) * size * 2
-      const [x, y, z] = saddleEmbed([u, v], k)
-      positions.push(x, y, z)
-
-      // Curvature heatmap color (Gaussian K = -(4k^2) / (1 + 4k^2 r^2)^2)
-      const r2 = u * u + v * v
-      const K = -4 * k * k / Math.pow(1 + 4 * k * k * r2, 2)
-      const t = clamp(Math.abs(K) / Kmax, 0, 1) // 0: flat-ish, 1: high |K|
-      const c1 = new THREE.Color('#e5e7eb') // near-zero |K| (light gray)
-      const c2 = new THREE.Color('#3b82f6') // large |K| (blue)
-      const c = c1.lerp(c2, t)
-      colors.push(c.r, c.g, c.b)
-    }
-  }
-  for (let i = 0; i < seg; i++) {
-    for (let j = 0; j < seg; j++) {
-      const a = i * (seg + 1) + j
-      const b = a + 1
-      const c = a + (seg + 1)
-      const d = c + 1
-      indices.push(a, b, d, a, d, c)
-    }
-  }
-  const geomRef = useRef()
-  useEffect(() => {
-    if (geomRef.current) geomRef.current.computeVertexNormals()
-  }, [])
-  return (
-    <mesh>
-      <bufferGeometry ref={geomRef}>
-        <bufferAttribute attach="attributes-position" array={new Float32Array(positions)} count={positions.length / 3} itemSize={3} />
-        <bufferAttribute attach="index" array={new Uint32Array(indices)} count={indices.length} itemSize={1} />
-        {heatmap && (
-          <bufferAttribute attach="attributes-color" array={new Float32Array(colors)} count={colors.length / 3} itemSize={3} />
-        )}
-      </bufferGeometry>
-      {heatmap ? (
-        <meshStandardMaterial vertexColors transparent opacity={0.9} />
-      ) : (
-        <meshStandardMaterial wireframe transparent opacity={0.45} />
-      )}
-    </mesh>
-  )
-}
-  }
-  for (let i = 0; i < seg; i++) {
-    for (let j = 0; j < seg; j++) {
-      const a = i * (seg + 1) + j
-      const b = a + 1
-      const c = a + (seg + 1)
-      const d = c + 1
-      indices.push(a, b, d, a, d, c)
-    }
-  }
-  const geomRef = useRef()
-  useEffect(() => {
-    geomRef.current.computeVertexNormals()
-  }, [])
-  return (
-    <mesh>
-      <bufferGeometry ref={geomRef}>
-        <bufferAttribute attach="attributes-position" array={new Float32Array(positions)} count={positions.length / 3} itemSize={3} />
-        <bufferAttribute attach="index" array={new Uint32Array(indices)} count={indices.length} itemSize={1} />
-      </bufferGeometry>
-      <meshStandardMaterial wireframe transparent opacity={0.45} />
-    </mesh>
-  )
-}
-
-export default function App() {
-  const [mode, setMode] = useState('euclid') // 'euclid' | 'riemann'
-  const [manifold, setManifold] = useState('sphere') // 'sphere' | 'saddle'
-  const [hud, setHud] = useState({ mode: '', pos: '', help: '' })
-
-  // New toggles & FX
-  const [showPortal, setShowPortal] = useState(true)
-  const [showGeodesics, setShowGeodesics] = useState(true)
-  const [showHeatmap, setShowHeatmap] = useState(true)
-  const [pose, setPose] = useState({ pos: [0, 0, 0], yaw: 0 })
-  const [transitionTS, setTransitionTS] = useState(0)
-  useEffect(() => { setTransitionTS(performance.now()) }, [mode, manifold])
-
-  // Simple pointer-drag orbit camera; in Euclid mode we'll let user freely orbit too for simplicity
-  const camRef = useRef()
-
-  return (
-    <div className="w-full h-screen bg-slate-900 text-slate-100">
-      <div className="absolute z-10 top-3 left-3 flex flex-col gap-2">
-        <div className="backdrop-blur bg-black/40 border border-white/10 rounded-2xl p-3 max-w-md">
-          <h1 className="text-lg font-semibold">3D ↔ Riemann Manifold Explorer</h1>
-          <p className="text-xs opacity-80">Move with <b>W/A/S/D</b>. Drag to look. <b>Space</b> to jump (flat only).</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button className={`px-3 py-1 rounded-xl ${mode==='euclid'?'bg-emerald-500 text-black':'bg-white/10'}`} onClick={()=>setMode('euclid')}>Flat (Euclidean)</button>
-            <button className={`px-3 py-1 rounded-xl ${mode!=='euclid'?'bg-emerald-500 text-black':'bg-white/10'}`} onClick={()=>setMode('riemann')}>Riemann world</button>
-            {mode!=='euclid' && (
-              <div className="flex gap-2">
-                <button className={`px-3 py-1 rounded-xl ${manifold==='sphere'?'bg-indigo-400 text-black':'bg-white/10'}`} onClick={()=>setManifold('sphere')}>Sphere</button>
-                <button className={`px-3 py-1 rounded-xl ${manifold==='saddle'?'bg-indigo-400 text-black':'bg-white/10'}`} onClick={()=>setManifold('saddle')}>Saddle</button>
-              </div>
-            )}
-          </div>
-            {mode!=='euclid' && (
-              <div className="flex gap-2 mt-2">
-                <button className={`px-3 py-1 rounded-xl ${showPortal?'bg-fuchsia-400 text-black':'bg-white/10'}`} onClick={()=>setShowPortal(v=>!v)}>Portal FX</button>
-                <button className={`px-3 py-1 rounded-xl ${showGeodesics?'bg-cyan-400 text-black':'bg-white/10'}`} onClick={()=>setShowGeodesics(v=>!v)}>Geodesics</button>
-                <button className={`px-3 py-1 rounded-xl ${showHeatmap?'bg-amber-400 text-black':'bg-white/10'}`} onClick={()=>setShowHeatmap(v=>!v)}>Curvature Heatmap</button>
-              </div>
-            )}
-            <div className="mt-2 text-xs grid grid-cols-3 gap-2">
-            <div className="col-span-3"><span className="opacity-60">Mode:</span> {hud.mode}</div>
-            <div className="col-span-3"><span className="opacity-60">Position:</span> {hud.pos}</div>
-            <div className="col-span-3 opacity-80">{hud.help}</div>
-            <div className="col-span-3 mt-1 italic text-[10px] opacity-70">Colors: X (red), Y (green), Z/normal (blue)</div>
-          </div>
-        </div>
-      </div>
-
-      <Canvas shadows camera={{ position: [0, 2, 6], fov: 60 }} onCreated={({ gl }) => { gl.setClearColor('#0b1220') }}>
-        <React.Suspense fallback={<Html>Loading…</Html>}>
-          <World mode={mode==='euclid'?'euclid':'riemann'} manifold={manifold} heatmap={showHeatmap} />
-          <Player mode={mode==='euclid'?'euclid':'riemann'} manifold={manifold} setHud={setHud} onPose={setPose} />
-          <OrbitControls ref={camRef} enablePan={false} enableZoom={true} />
-          <GeodesicTracers enabled={showGeodesics && mode!=='euclid' && manifold==='sphere'} manifold={manifold} pose={pose} />
-          <PortalFX enabled={showPortal} ts={transitionTS} position={pose.pos} />
-        </React.Suspense>
-      </Canvas>
-
-      <div className="absolute right-3 bottom-3 text-xs opacity-70">
-        Built with <code>@react-three/fiber</code> • metric-aware navigation on sphere via stereographic chart
-      </div>
-    </div>
-  )
-}
-
-// NOTE: This is an educational visualization. In the Riemann world, movement uses a chart-based metric scaling to preserve physical speed.
-// For the sphere we use stereographic coordinates (conformal). For the saddle we embed a hyperbolic-paraboloid as a demo of negative curvature.
-// Feel free to tweak speed, surfaces, and add geodesic tracers or curvature heatmaps for extra flair. 
+// Feel free to tweak speed, surfaces, and add geodesic tracers or curvature heatmaps for extra flair.
